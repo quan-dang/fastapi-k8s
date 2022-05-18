@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iris
+  labels:
+    app: iris
+  namespace: yournamespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iris
+  template:
+    metadata:
+      labels:
+        app: iris
+    spec:
+      containers:
+        - name: iris
+          image: docker.io/dangvanquan25/iris-fastapi:0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+      # serviceAccountName: yoursa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iris
+  labels:
+    app: iris
+  namespace: yournamespace
+spec:
+  selector:
+    app: iris
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: iris-gateway
+  namespace: yournamespace
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - '*'
+    port:
+      name: http
+      number: 80
+      protocol: HTTP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: iris
+  namespace: yournamespace
+spec:
+  gateways:
+  - yournamespace/iris-gateway
+  hosts:
+  - '*'
+  http:
+  - match:
+    - uri:
+        prefix: /seldon/yournamespace/iris/api/v1.0/
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: iris
+        port:
+          number: 80
